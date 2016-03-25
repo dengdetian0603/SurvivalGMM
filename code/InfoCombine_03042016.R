@@ -1,4 +1,3 @@
-
 remove(list=ls()) 
 library(survival)
 library(lattice)
@@ -38,7 +37,7 @@ Sim.data = function(b1=-0.5, b2=0.5, option=2, sc=2, rho0=1, n=100, aux = TRUE, 
 
             Acut0 <- Xcut(z1, z2 )
             # S( tcut[j] | Acut[,k] )   
-            phi0 = matrix(NA, nrow=length(tcut0), ncol=ncol(Acut0))
+            phi0 = matrix(NA, ncol=length(tcut0), nrow=ncol(Acut0))
             for( k in 1: ncol(Acut0) ){
                   for (j in 1:length(tcut0)){
                         phi0[k,j] = sapply(tcut0[j], function(u, t=t0[Acut0[,k]]){ mean(t>u) } )
@@ -173,8 +172,7 @@ getGrad = function(parm, x, U, T0, phi0, grpID)
             dU3_dbeta[k,] = apply(tmp, 2, mean)
       }
 
-## TODO:
-      dU1_dbeta = 
+## TODO: dU1_dbeta = 
 
 }
 
