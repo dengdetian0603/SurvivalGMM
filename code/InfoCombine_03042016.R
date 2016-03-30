@@ -143,12 +143,16 @@ getU.asym <- function(parm, x=wdata, T0, phi0, grpID)
 getGrad = function(parm, x, U, T0, phi0, grpID)
 {
       gdata <- x; N <- nrow(gdata)
+      J = length(T0)
+      K = nrow(phi0)
+
       # score function
-      alpha = parm[1]
-      beta = parm[-1]
+      alpha = parm[1:J]
+      beta = parm[-(1:J)]
       gx <- as.matrix( gdata[,-1*(1:2)] )
       ebx <- exp( gx %*% beta )
       S0 <- sapply( gdata$y, function(u, t=gdata$y, a=ebx){ sum(a*(t>=u)) }) # n*s^(0)( t=y_i, beta) for i=1,...,N
+      
       #baseline hazard
       dLam <- gdata$d/S0 #assume no ties; this needs to be taken care of later
       ### dN(y_i)/nS^(0)(y_i)  ####### use dN(y_i)/n for E[dN(t)]|y_i !!!!!
@@ -172,7 +176,19 @@ getGrad = function(parm, x, U, T0, phi0, grpID)
             dU3_dbeta[k,] = apply(tmp, 2, mean)
       }
 
+      S1 <- matrix(NA, ncol=length(beta), nrow=N)
+      U1 = matrix(NA, ncol=length(beta), nrow=N)
+      for(kk in 1: ncol(gx)){
+            S1[,kk] <- sapply( gdata$y, function(u, t=gdata$y, a=gx[,kk]*ebx){ sum(a*(t>=u)) }) ## the kk-th element of n*S^(1)( Y_i, beta) for i=1,...,N
+            tmp <- gdata$d *(gx[,kk] - S1[,kk]/S0 )   ## \int_{t} [Z_i(t=y_i) - s^(1)/s^(0)]dN_i(t)
+            U1[, kk] <- tmp - (gx[,kk] * ebx * sapply(gdata$y, findInt, dh=dLam) - 
+                  ebx* sapply(gdata$y, findInt, dh=dLam * S1[,kk]/S0) ) 
+      } 
+
 ## TODO: dU1_dbeta = 
+
+
+## TODO: dU2_dbeta = 
 
 }
 
