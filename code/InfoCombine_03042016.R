@@ -2,6 +2,7 @@ remove(list=ls())
 library(survival)
 library(lattice)
 library(gmm)
+library(matrixStats)
 
 Sim.data = function(b1=-0.5, b2=0.5, option=2, sc=2, rho0=1, n=100, aux = TRUE, tcut0=0.5){
       phi0 = NULL
@@ -140,56 +141,75 @@ getU.asym <- function(parm, x=wdata, T0, phi0, grpID)
 
 
 # gradient of U bar
-getGrad = function(parm, x, U, T0, phi0, grpID)
+getGrad = function(parm, x, T0, phi0, grpID)
 {
-      gdata <- x; N <- nrow(gdata)
+      index = order(x$y, decreasing=TRUE)
+      gdata = x[index, ]
+      grpID = grpID[index,]
+      
+      N = nrow(gdata)
       J = length(T0)
       K = nrow(phi0)
 
-      # score function
       alpha = parm[1:J]
       beta = parm[-(1:J)]
-      gx <- as.matrix( gdata[,-1*(1:2)] )
-      ebx <- exp( gx %*% beta )
-      S0 <- sapply( gdata$y, function(u, t=gdata$y, a=ebx){ sum(a*(t>=u)) }) # n*s^(0)( t=y_i, beta) for i=1,...,N
-      
+      p = length(beta)
+
+      gx = as.matrix( gdata[,-1*(1:2)] )
+      ebx = exp( gx %*% beta )
+      #S0 <- sapply( gdata$y, function(u, t=gdata$y, a=ebx){ sum(a*(t>=u)) }) # n*s^(0)( t=y_i, beta) for i=1,...,N
+      xebx = diag(ebx[,1]) %*% gx
+      xxt =  t(apply(gx,1,function(x) {x%*%t(x)})) # each xxt matrix is compressed as a row vector
+      xxtebx = diag(ebx[,1]) %*% xxt
+
+      nS0 = cumsum(ebx)
+      nS1 = colCumsums(xebx)
+      nS2 = colCumsums(xxtebx)
+
       #baseline hazard
-      dLam <- gdata$d/S0 #assume no ties; this needs to be taken care of later
+      dLam = gdata$d/nS0 #assume no ties; this needs to be taken care of later
       ### dN(y_i)/nS^(0)(y_i)  ####### use dN(y_i)/n for E[dN(t)]|y_i !!!!!
 
       findInt <- function(u, tt=gdata$y, dh ){ sum(dh[tt<=u]) } ## \int_{t <= u}^ dh(t)  
 
-      dU1_dalpha = matrix(0, nrow=length(beta), ncol=1)
-      dU2_dalpha = matrix(1, nrow=1, ncol=1)
+      dU1_dalpha = matrix(0, nrow=p, ncol=J)
+      dU2_dalpha = matrix(-1, nrow=J, ncol=J)
 
-      K = length(phi0)
       tmp = NULL
-      dU3_dalpha = matrix(NA, nrow=K, ncol=1)
-      dU3_dbeta = matrix(NA, nrow=K, ncol=length(beta))
+      dU3_dalpha = matrix(0, nrow=J*K, ncol=J)
+      dU3_dbeta = matrix(0, nrow=J*K, ncol=p)
+
       grpval = sort(unique(grpID))[-1] # grpID == 0 means it does not fit in any subgroup
-      for (k in 1:K)
-      {
-            tmp =  -(grpID == grpval[k])*(exp(-alpha*ebx)*ebx)
-            dU3_dalpha[k,1] = mean(tmp) 
-            tmp = -(grpID == grpval[k])*(exp(-alpha*ebx)*alpha*ebx)
-            tmp = diag(tmp) %*% gx
-            dU3_dbeta[k,] = apply(tmp, 2, mean)
+      for (j in 1:J){     
+            for (k in 1:K){
+                  tmp =  -(grpID == grpval[k])*(exp(-alpha[j]*ebx)*ebx)
+                  dU3_dalpha[(j-1)*K+k,j] = mean(tmp) 
+                  tmp = -(grpID == grpval[k])*(exp(-alpha[j]*ebx)*alpha[j]*ebx)
+                  print(tmp)
+                  tmp = diag(tmp[,1]) %*% gx
+                  dU3_dbeta[(j-1)*K+k,] = apply(tmp, 2, mean)
+            }
       }
 
-      S1 <- matrix(NA, ncol=length(beta), nrow=N)
-      U1 = matrix(NA, ncol=length(beta), nrow=N)
-      for(kk in 1: ncol(gx)){
-            S1[,kk] <- sapply( gdata$y, function(u, t=gdata$y, a=gx[,kk]*ebx){ sum(a*(t>=u)) }) ## the kk-th element of n*S^(1)( Y_i, beta) for i=1,...,N
-            tmp <- gdata$d *(gx[,kk] - S1[,kk]/S0 )   ## \int_{t} [Z_i(t=y_i) - s^(1)/s^(0)]dN_i(t)
-            U1[, kk] <- tmp - (gx[,kk] * ebx * sapply(gdata$y, findInt, dh=dLam) - 
-                  ebx* sapply(gdata$y, findInt, dh=dLam * S1[,kk]/S0) ) 
-      } 
-
 ## TODO: dU1_dbeta = 
+      S1S1t =  t(apply(nS1/N,1,function(x) {x%*%t(x)}))
+      tmp1 = diag(dLam)%*%(nS2/N - diag(N/nS0)%*%S1S1t)
+      du1.part1 = matrix(apply(tmp1, 2, sum), nrow=p, ncol=p)
 
+      du1.part2 = matrix(0, nrow=p, ncol=p)
+      for (i in 1:N){
+            for (ii in i:N){
+                  tmp = -xxt[i,] + (nS2[ii,]+2*as.vector(nS1[ii,]%*%t(gx[i,])))/nS0[ii] - 2*S1S1t[ii,]*N*N/nS0[ii]^2
+                  du1.part2 = du1.part2 + matrix(ebx[i]*dLam[ii]*tmp, nrow=p, ncol=p)
+            }
+      }
+      du1.part2 = du1.part2/N
+      dU1_dbeta = du1.part1 + du1.part2
 
 ## TODO: dU2_dbeta = 
-
+      du2.part1 = t(sapply(T0, function(t){ apply(diag((gdata$y<=t)/nS0*dLam)%*%nS1, 2, sum) } )) * 2
+      du2.part2 = -apply(xebx,2,sum)*sum(1/nS0*dLam)
+      #du2.part3 = 
 }
 
 
@@ -252,12 +272,14 @@ getU.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K ma
 
 #### Combining auxilliary information project
 #*# confirm GMM method works 
-## extend to multiple survival end-points
-## try Bayesian GMM with 
+#*# extend to multiple survival end-points
+## improve optimization stablity with exact gradient
+## allow constant difference between sample and population accumulative hazard
+## try Bayesian GMM
 ## combine median follow-up time
 
 #### Imputation Censoring project
 ## Efron's re-dristribution to the right (EM) principle: self-consistency algorithm.
-## 
+## Compare with Jon's Censoring Unbiased Survival Tree method.
 
 
