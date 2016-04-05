@@ -149,7 +149,14 @@ getGrad = function(parm, x, T0, phi0, grpID)
       
       N = nrow(gdata)
       J = length(T0)
-      K = nrow(phi0)
+      if (J > 1) {
+            K = nrow(phi0)
+            dU2_dalpha = diag(rep(-1, J))
+      } else {
+            K = length(phi0) 
+            phi0 = matrix(phi0, ncol=1)
+            dU2_dalpha = -1
+      }
 
       alpha = parm[1:J]
       beta = parm[-(1:J)]
@@ -173,7 +180,7 @@ getGrad = function(parm, x, T0, phi0, grpID)
       findInt <- function(u, tt=gdata$y, dh ){ sum(dh[tt<=u]) } ## \int_{t <= u}^ dh(t)  
 
       dU1_dalpha = matrix(0, nrow=p, ncol=J)
-      dU2_dalpha = diag(rep(-1, J))
+      
 
       tmp = NULL
       dU3_dalpha = matrix(0, nrow=J*K, ncol=J)
@@ -243,7 +250,8 @@ getU.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K ma
 {
       gdata <- x; N <- nrow(gdata)
       J = length(T0)
-      K = nrow(phi0)
+      if (J > 1) K = nrow(phi0)
+      else K = length(phi0); phi0 = matrix(phi0, ncol=1)
 
       # score function
       alpha = parm[1:J]

@@ -45,29 +45,25 @@ tmp = foreach(k = 1:nrep, .combine=rbind) %dopar% {
       
       # fit the true model
       fit <- coxph( formula0, data=wdata )
-      #fit.cox[k,] <- fit$coef   
-      #V.est[k,] <- diag(fit$var)
 
       ## combine from population survival probability
       #G = function(theta, x) getU.asym(parm=theta, x=x, T0=T0[1], phi0=phi0[,1], grpID=grpID)
       G = function(theta, x) getU.multi_asym(parm=theta, x=x, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
-      #G.grad = function(theta, x) getGrad(parm=theta, x=x, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID) 
-      fit1 <- summary( gmm(g=G, x=wdata, t0 = c(alpha0[1:J],fit$coef)  ) ) # GMM estimate based on asymptotic estimating equations with cox solution as starting value.
-      #fit1 <- summary( gmm(g=G, x=wdata, t0 = c(alpha0[1:J],fit$coef), gradv = G.grad, method="BFGS" ) )
-      #fit1.gmm[k,] <- fit1$coefficient[,1]
-      #V1.cbd[k,]<- fit1$coefficient[,2]^2 # the GtVG estimate of Var(beta) evaluated at the solution.
+      G.grad = function(theta, x) getGrad(parm=theta, x=x, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID) 
+      #fit1 <- summary( gmm(g=G, x=wdata, t0 = c(alpha0[1:J],fit$coef)  ) ) # GMM estimate based on asymptotic estimating equations with cox solution as starting value.
+      fit1 <- summary( gmm(g=G, x=wdata, t0 = c(alpha0[1:J],fit$coef), gradv = G.grad, method="BFGS" ) )
 
-      #foo <- var(G(theta= fit1.gmm[k,], x=wdata)) # emperical covariance matrix estimate of G at the solution.
-      # foo1 <- foo[1:length(fit$coef), 1:length(fit$coef)] # different blocks of th weight matrix
-      # foo2 <- foo[1:length(fit$coef), 1:length(bx0)+length(fit$coef)]
-      # foo3 <- foo[1:length(bx0)+length(fit$coef), 1:length(bx0)+length(fit$coef)]
-      # V1.est[k,] <- diag(solve(foo1%*%solve(foo1-foo2%*%solve(foo3)%*%t(foo2))%*%t(foo1))/n) # solve for Var(beta) while avoid using derivative estimates.
-      coef = c(fit$coef, fit1$coefficient[-(1:J),1])
+      Sigmahat = var(G(theta= fit1$coefficient[,1], x=wdata)) # emperical covariance matrix estimate of G at the solution.
+      Dhat = G.grad(theta = fit1$coefficient[,1], x=wdata)
+      nVarhat = solve(t(Dhat)%*%solve(Sigmahat)%*%Dhat)
+      std.err = sqrt(diag(nVarhat/n))
+      
+      coef = c(fit$coef, sqrt(diag(fit$var)), fit1$coefficient[-(1:J),1], std.err[-(1:J)] )
       coef
 }  
 
 fit.cox = tmp[,1:2]
-fit1.gmm = tmp[,3:4]
+fit1.gmm = tmp[,5:6]
 
 bias0 <- apply(fit.cox, 2, mean) - bx0
 var0  <- apply(fit.cox, 2, var )
