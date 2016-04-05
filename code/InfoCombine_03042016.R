@@ -251,8 +251,10 @@ getU.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K ma
       gdata <- x; N <- nrow(gdata)
       J = length(T0)
       if (J > 1) K = nrow(phi0)
-      else K = length(phi0); phi0 = matrix(phi0, ncol=1)
-
+      else {
+            K = length(phi0)
+            phi0 = matrix(phi0, ncol=1)
+      }
       # score function
       alpha = parm[1:J]
       beta = parm[-(1:J)]
@@ -297,7 +299,7 @@ getU.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K ma
 
       return(cbind(U1, U2, U3))
 }
-
+# getU.multi_asym(parm=c(alpha0[1:J],fit$coef), x=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
 
 
 

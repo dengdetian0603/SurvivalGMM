@@ -22,7 +22,7 @@ phi0 = auxdata$phi0
 formula0 <- as.formula("Surv(y, d) ~ z1 + z2")
 
 # combine information
-J = 1 # number of endpoints used
+J = 2 # number of endpoints used
 par0 = c(alpha0[1:J], bx0)
 
 nrep <- 128#00 
