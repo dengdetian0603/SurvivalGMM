@@ -6,11 +6,11 @@ library(foreach)
 library(doMC)
 
 source("InfoCombine_03042016.R")
-cround<-function(x){sprintf("%.2f",  round(x, 2))}
+#cround<-function(x){sprintf("%.2f",  round(x, 4))}
 
 
 # true parameters
-alpha0 = rep(0.5,4)
+alpha0 = seq(0.4,0.7,0.1)
 bx0 = c(-0.5, 0.5)
 
 T0 = c(0.5,0.75,1,1.25)
@@ -33,7 +33,7 @@ V1.cbd<- V1.est <- matrix(NA, ncol= length(par0), nrow=nrep) # var(beta) of comb
 
 n <- 100
 registerDoMC(detectCores())
-tmp = foreach(k = 1:nrep, .combine=rbind) %dopar% { 
+model_fits = foreach(k = 1:nrep, .combine=rbind) %dopar% { 
       set.seed(10101+k)
       print(k)
 
@@ -62,43 +62,47 @@ tmp = foreach(k = 1:nrep, .combine=rbind) %dopar% {
       coef
 }  
 
-fit.cox = tmp[,1:2]
-fit1.gmm = tmp[,5:6]
+fit.cox = model_fits[,1:2]
+fit1.gmm = model_fits[,5:6]
 
-bias0 <- apply(fit.cox, 2, mean) - bx0
-var0  <- apply(fit.cox, 2, var )
-bias1 <- apply(fit1.gmm, 2, mean) - bx0
-var1  <- apply(fit1.gmm, 2, var )  
+bias0 <- round(apply(fit.cox, 2, mean) - bx0, 4)
+var0  <- round(apply(fit.cox, 2, var ) , 4)
+bias1 <- round(apply(fit1.gmm, 2, mean) - bx0 , 4)
+var1  <- round(apply(fit1.gmm, 2, var ) , 4) 
+
+print(paste("Cox: bias =",bias0[1], bias0[2], ", var = ", var0[1], var0[2], sep=" "))
+print(paste("GMM: bias =",bias1[1], bias1[2], ", var = ", var1[1], var1[2], sep=" "))
 
 
-sink(file = paste("out20160217-fixed-n",n,"-", option,".txt", sep="" ) )
+save(model_fits, bx0, T0, phi0, J, file=paste("o20160405-n",n,"-J",J,".Rdata", sep="" ) )
+
+# sink(file = paste("out20160217-fixed-n",n,"-", option,".txt", sep="" ) )
 
 
 
-cat("\n N =", n, "; rep =", nrep,
-    "\n proportion of censoring =",  signif(mean(cenp),2),
-    "\n Gamma =", cround(gamma0),
-    "\n Gamma, subgroup =", cround(gamma0.SG),
-    "\n True regression parameters:", bx0, bz0, 
-    "\n Conventional Cox:",
-    "\n\t   Bias =", cround(bias0) ,
-    "\n\t     SD =", cround( sqrt(var0)) ,    
-    "\n\t    ASD =", cround( sqrt(apply(V.est, 2, mean))), 
-    "\n Combined information:",
-    "\n\t   Bias =", cround(bias1) ,
-    "\n\t     SD =", cround(sqrt(var1)) , 
-    "\n\t     RE =", cround(var0/var1 ), 
-    "\n\t    ASD =", cround( sqrt(apply(V1.cbd, 2, mean))),
-    "\n\t Est.SD =", cround( sqrt(apply(V1.est, 2, mean))),  
-    "\n Combined information (Subgroup):",
-    "\n\t   Bias =", cround(bias2) ,
-    "\n\t     SD =", cround(sqrt(var2)) , 
-    "\n\t     RE =", cround(var0/var2), 
-    "\n\t    ASD =", cround( sqrt(apply(V2.cbd, 2, mean))),
-    "\n\t Est.SD =", cround( sqrt(apply(V2.est, 2, mean))) 
-)
+# cat("\n N =", n, "; rep =", nrep,
+#     "\n proportion of censoring =",  signif(mean(cenp),2),
+#     "\n Gamma =", cround(gamma0),
+#     "\n Gamma, subgroup =", cround(gamma0.SG),
+#     "\n True regression parameters:", bx0, bz0, 
+#     "\n Conventional Cox:",
+#     "\n\t   Bias =", cround(bias0) ,
+#     "\n\t     SD =", cround( sqrt(var0)) ,    
+#     "\n\t    ASD =", cround( sqrt(apply(V.est, 2, mean))), 
+#     "\n Combined information:",
+#     "\n\t   Bias =", cround(bias1) ,
+#     "\n\t     SD =", cround(sqrt(var1)) , 
+#     "\n\t     RE =", cround(var0/var1 ), 
+#     "\n\t    ASD =", cround( sqrt(apply(V1.cbd, 2, mean))),
+#     "\n\t Est.SD =", cround( sqrt(apply(V1.est, 2, mean))),  
+#     "\n Combined information (Subgroup):",
+#     "\n\t   Bias =", cround(bias2) ,
+#     "\n\t     SD =", cround(sqrt(var2)) , 
+#     "\n\t     RE =", cround(var0/var2), 
+#     "\n\t    ASD =", cround( sqrt(apply(V2.cbd, 2, mean))),
+#     "\n\t Est.SD =", cround( sqrt(apply(V2.est, 2, mean))) 
+# )
 
-sink()
-
-save(list=ls(), file=paste("out20160217-fixed-n",n,"-", option,".Rdata", sep="" ) )
+# sink()
+#save(list=ls(), file=paste("out20160217-fixed-n",n,"-", option,".Rdata", sep="" ) )
 
