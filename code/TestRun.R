@@ -22,7 +22,8 @@ alpha0 = seq(0.4,0.7,0.1)
 bx0 = c(-0.5, 0.5)
 
 T0 = c(0.5,0.75,1,1.25)
-auxdata = Sim.data(n=1, tcut0=T0) 
+#auxdata = Sim.data(n=1, tcut0=T0) 
+load("Population_data.Rdata")
 phi0 = auxdata$phi0
 
 
@@ -90,8 +91,8 @@ fit1.gmm = model_fits[,5:6]
 
 bias0 <- round(apply(fit.cox, 2, mean) - bx0, 4)
 var0  <- round(apply(fit.cox, 2, var ) , 4)
-bias1 <- round(apply(fit1.gmm, 2, mean) - bx0 , 4)
-var1  <- round(apply(fit1.gmm, 2, var ) , 4) 
+bias1 <- round(apply(fit1.gmm, 2, mean, na.rm=TRUE) - bx0 , 4)
+var1  <- round(apply(fit1.gmm, 2, var, na.rm=TRUE) , 4) 
 
 print(paste("Cox: bias =",bias0[1], bias0[2], ", var = ", var0[1], var0[2], sep=" "))
 print(paste("GMM: bias =",bias1[1], bias1[2], ", var = ", var1[1], var1[2], sep=" "))
