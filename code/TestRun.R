@@ -8,10 +8,10 @@ library(doMC)
 source("InfoCombine_03042016.R")
 #cround<-function(x){sprintf("%.2f",  round(x, 4))}
 
-args = as.numeric(commandArgs(trailingOnly = TRUE) )
+args = commandArgs(trailingOnly = TRUE)
 if (length(args) > 1){
-      J = args[1]
-      n = args[2]
+      J = as.numeric(args[1])
+      n = as.numeric(args[2])
 } else {
       J = 1
       n = 100
@@ -43,7 +43,7 @@ V1.cbd<- V1.est <- matrix(NA, ncol= length(par0), nrow=nrep) # var(beta) of comb
 #n <- 100
 registerDoMC(detectCores())
 model_fits = foreach(k = 1:nrep, .combine=rbind) %dopar% { 
-      set.seed(21205+k)
+      set.seed(21205+10*k)
       print(k)
 
       tmp <- Sim.data(n=n, aux=FALSE) 

@@ -307,7 +307,7 @@ getU.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K ma
 #### Combining auxilliary information project
 #*# confirm GMM method works 
 #*# extend to multiple survival end-points
-## improve optimization stablity with exact gradient
+#*# improve optimization stablity with exact gradient
 ## allow constant difference between sample and population accumulative hazard
 ## try Bayesian GMM
 ## combine median follow-up time
