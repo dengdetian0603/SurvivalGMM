@@ -3,6 +3,7 @@ library(survival)
 library(lattice)
 library(gmm)
 library(matrixStats)
+library(corpcor)
 
 Sim.data = function(b1=-0.5, b2=0.5, option=2, sc=2, rho0=1, n=100, aux = TRUE, tcut0=0.5){
       phi0 = NULL
@@ -303,7 +304,6 @@ getU.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K ma
 
 
 
-
 #### Combining auxilliary information project
 #*# confirm GMM method works 
 #*# extend to multiple survival end-points
@@ -315,3 +315,97 @@ getU.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K ma
 #### Imputation Censoring project
 ## Efron's re-dristribution to the right (EM) principle: self-consistency algorithm.
 ## Compare with Jon's Censoring Unbiased Survival Tree method.
+
+#------------------- Bayesian GMM ------------------------------#
+GMM.likelihood = function(theta, X, T0, phi0, grpID, shrinkage=TRUE, logscale=TRUE){
+      N = nrow(X)
+      G = getU.multi_asym(parm=theta, x=X, T0=T0, phi0=phi0, grpID=grpID)
+      Gbar = apply(G, 2, mean)
+      if (shrinkage) {
+            invSigma = invcov.shrink(G, verbose=FALSE)
+            Qn = Gbar%*%invSigma%*%Gbar*N
+      } else {
+            Sigma = var(G)
+            Qn = Gbar%*%solve(Sigma, Gbar)*N
+      }
+      Qn = as.vector(Qn)
+      if (logscale){
+            return(-0.5*Qn)
+      } else {
+            return(exp(-0.5*Qn))
+      }
+}
+# GMM.likelihood(theta = fit1$coefficients[,1], X=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
+
+Get.prior = function(theta, J, prior.var, logscale=TRUE){
+# TODO: gamma process prior for cumulative hazard function      
+      prior.alpha = 
+      prior.beta = dnorm(x=theta[-(1:J)], mean=0, sd = sqrt(prior.var), log=logscale)
+
+      if (logscale){
+            return(sum(prior.alpha) + sum(prior.beta))
+      } else {
+            return(prod(prior.alpha)*prod(prior.beta))
+      }
+}
+# Get.prior(theta = fit1$coefficients[,1], prior.var=100)
+
+Jump2Next = function(theta0, J, jump.sd){
+      alpha.new = abs(theta0[1:J] + rnorm(J, 0, jump.sd))
+      beta.new =  theta[-(1:J)] + rnorm(length(theta0)-J, 0, jump.sd)
+      return( c(alpha.new, beta.new) )
+}
+
+# DataList = list(X=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
+Bayesian.GMM = function(DataList, theta.init, J, nburn, npost, jump.sd, prior.var, shrinkage=TRUE){
+      nchain = npost + nburn
+      
+      post.chain = matrix(NA, nrow=nchain, ncol=length(theta.init))
+      post.chain[1,] = theta.init
+
+      log.density = function(parm){
+            GMM.likelihood(theta=parm, X=DataList$X, T0=DataList$T0, 
+                  phi0=DataList$phi0, grpID=DataList$grpID, shrinkage=shrinkage, logscale=TRUE) + 
+            Get.prior(theta=parm, J=J, prior.var=prior.var, logscale=TRUE)
+      }
+
+      density.histroy = rep(NA, nchain)
+      density.histroy[1] = log.density(parm=theta.init)
+
+      for (i in 2: nchain){
+            theta.new = Jump2Next(post.chain[i-1], J=J, jump.sd=jump.sd)
+            density.new = log.density(parm=theta.new)
+            MH.ratio = exp( density.new - density.histroy[i-1] )
+
+            if (MH.ratio >1){
+# TODO:                 # accept
+            } else {
+                  r = runif(1,0,1)
+                  if (r < MH.ratio) {
+                        # accept
+                  } else {
+                        # reject
+                  }
+            }
+      }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
