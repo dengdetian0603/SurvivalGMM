@@ -100,6 +100,27 @@ print(paste("GMM: bias =",bias1[1], bias1[2], ", var = ", var1[1], var1[2], sep=
 
 save(model_fits, bx0, T0, phi0, J, file=paste("o20160405-n",n,"-J",J,".Rdata", sep="" ) )
 
+
+
+# ------------------------------------ Bayesian GMM ------------------------------------- #
+tmp = Sim.data(n=n, aux=FALSE) 
+wdata = tmp$data
+grpID = tmp$grpID
+data.list = list(X=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
+jump.parameter = data.frame(jump.scale=1, jump.sd1=0.02, jump.sd2=0.05)
+
+source("InfoCombine_03042016.R")
+mcmc.result = Bayesian.GMM(DataList=data.list, theta.init=c(alpha0[1:J],fit$coef), J=J, 
+                        nburn=1, npost=501, jump.pars=jump.parameter, 
+                        alpha.scale=5, beta.sd=10, shrinkage=TRUE)
+
+
+
+
+
+
+
+
 # sink(file = paste("out20160217-fixed-n",n,"-", option,".txt", sep="" ) )
 
 # cat("\n N =", n, "; rep =", nrep,

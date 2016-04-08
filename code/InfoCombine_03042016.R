@@ -1,4 +1,4 @@
-remove(list=ls()) 
+#remove(list=ls()) 
 library(survival)
 library(lattice)
 library(gmm)
@@ -337,10 +337,11 @@ GMM.likelihood = function(theta, X, T0, phi0, grpID, shrinkage=TRUE, logscale=TR
 }
 # GMM.likelihood(theta = fit1$coefficients[,1], X=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
 
-Get.prior = function(theta, J, prior.var, logscale=TRUE){
-# TODO: gamma process prior for cumulative hazard function      
-      prior.alpha = 
-      prior.beta = dnorm(x=theta[-(1:J)], mean=0, sd = sqrt(prior.var), log=logscale)
+Get.prior = function(theta, J, alpha.shape, alpha.scale, beta.sd, logscale=TRUE){
+      # gamma process prior for cumulative hazard function      
+      alpha.increment = (c(theta[1:J],0)-c(0,theta[1:J]))[1:J]
+      prior.alpha = dgamma(x=alpha.increment, shape=alpha.shape, scale=alpha.scale, log=logscale)
+      prior.beta = dnorm(x=theta[-(1:J)], mean=0, sd = beta.sd, log=logscale)
 
       if (logscale){
             return(sum(prior.alpha) + sum(prior.beta))
@@ -348,46 +349,96 @@ Get.prior = function(theta, J, prior.var, logscale=TRUE){
             return(prod(prior.alpha)*prod(prior.beta))
       }
 }
-# Get.prior(theta = fit1$coefficients[,1], prior.var=100)
+# Get.prior(theta = fit1$coefficients[,1], J=J, alpha.shape, alpha.scale=2, beta.sd=10)
 
-Jump2Next = function(theta0, J, jump.sd){
-      alpha.new = abs(theta0[1:J] + rnorm(J, 0, jump.sd))
-      beta.new =  theta[-(1:J)] + rnorm(length(theta0)-J, 0, jump.sd)
+Jump2Next = function(theta0, J, iter, alphalist, jump.sd){
+      alpha.new = alphalist[iter, ]
+      beta.new =  theta0[-(1:J)] + rnorm(length(theta0)-J, 0, jump.sd)
+      return( c(alpha.new, beta.new) )
+}
+
+Jump2Next.b = function(theta0, J, jump.sd1, jump.sd2){
+      alpha.increment = (c(theta0[1:J],0)-c(0,theta0[1:J]))[1:J]
+      new.increment = abs(alpha.increment + rnorm(J, 0, jump.sd1))
+      alpha.new = cumsum(new.increment)
+
+      beta.new =  theta0[-(1:J)] + rnorm(length(theta0)-J, 0, jump.sd2)
       return( c(alpha.new, beta.new) )
 }
 
 # DataList = list(X=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
-Bayesian.GMM = function(DataList, theta.init, J, nburn, npost, jump.sd, prior.var, shrinkage=TRUE){
+Bayesian.GMM = function(DataList, theta.init, J, nburn, npost, jump.pars, alpha.scale, beta.sd, shrinkage=TRUE){
       nchain = npost + nburn
+      acceptance = rep(0, nchain)
       
+      jump.scale = jump.pars$jump.scale
+      jump.sd1 = jump.pars$jump.sd1
+      jump.sd2 = jump.pars$jump.sd2
+
       post.chain = matrix(NA, nrow=nchain, ncol=length(theta.init))
       post.chain[1,] = theta.init
 
+      surv.prob = DataList$phi0
+      if (J<2) {
+            surv.prob = matrix(surv.prob)
+      }
+      R = apply(-log(surv.prob), 2, mean)/jump.scale
+      jump.shape = (c(R,0)-c(0,R))[1:J]
+      R = apply(-log(surv.prob), 2, mean)/alpha.scale
+      Alpha.shape = (c(R,0)-c(0,R))[1:J]
+
       log.density = function(parm){
+            #print(parm)
             GMM.likelihood(theta=parm, X=DataList$X, T0=DataList$T0, 
                   phi0=DataList$phi0, grpID=DataList$grpID, shrinkage=shrinkage, logscale=TRUE) + 
-            Get.prior(theta=parm, J=J, prior.var=prior.var, logscale=TRUE)
+            Get.prior(theta=parm, J=J, alpha.shape=Alpha.shape, alpha.scale=alpha.scale, beta.sd=beta.sd, logscale=TRUE)
       }
 
       density.histroy = rep(NA, nchain)
       density.histroy[1] = log.density(parm=theta.init)
 
+      alpha.candidates = matrix(NA, nrow=nchain, ncol=J)
+
+      for (j in 1:J){
+            alpha.candidates[,j] = rgamma(n=nchain, , shape=jump.shape, scale=jump.scale)
+      }
+      if (J>1) alpha.candidates = rowCumsums(alpha.candidates)
+
       for (i in 2: nchain){
-            theta.new = Jump2Next(post.chain[i-1], J=J, jump.sd=jump.sd)
+            #print(i)
+            #theta.new = Jump2Next(post.chain[i-1,], J=J, iter=i, alphalist=alpha.candidates, jump.sd=jump.sd2)
+            theta.new = Jump2Next.b(post.chain[i-1,], J=J, jump.sd1 = jump.sd1, jump.sd2 = jump.sd2)
             density.new = log.density(parm=theta.new)
             MH.ratio = exp( density.new - density.histroy[i-1] )
 
             if (MH.ratio >1){
-# TODO:                 # accept
+                  # accept
+                  post.chain[i, ] = theta.new
+                  density.histroy[i] = density.new
+                  acceptance[i] = 1
             } else {
                   r = runif(1,0,1)
                   if (r < MH.ratio) {
                         # accept
+                        post.chain[i, ] = theta.new
+                        density.histroy[i] = density.new
+                        acceptance[i] = 1
                   } else {
                         # reject
+                        post.chain[i, ] = post.chain[i-1,]
+                        density.histroy[i] = density.histroy[i-1]
                   }
             }
+            if (i %% 26==0) {
+                  print(c(acceptance[i], post.chain[i, ]))
+            }
+            if (i %% 50==0) {
+                  print(paste("iter: ",i, ", avg. acceptance: ", round(mean(acceptance[2:i]) , 3), 
+                        " posterior mean: " ))
+                  print(apply(post.chain[2:i,], 2, mean))
+            }
       }
+      return( list(theta.posterior=post.chain, acceptance=acceptance, log.density=density.histroy) )
 }
 
 
