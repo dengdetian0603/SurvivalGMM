@@ -12,7 +12,7 @@ Sim.data = function(b1=-0.5, b2=0.5, option=2, sc=2, rho0=1, n=100, aux = TRUE, 
       if (option ==1 & sc ==2 ){ ucen <- 2.6721; cenp  <- 30 }#censoring pr=30%
       if (option ==1 & sc ==3 ){ ucen <- 1.2253; cenp  <- 50 }#censoring pr=50%
       if (option ==2 & sc ==2 ){ ucen <- 2.6995; cenp  <-30} #censoring pr=30%
-      if (option ==2 & sc ==3 ){ ucen <- 1.5647; cenp  <-50} #censoring pr=30% 
+      if (option ==2 & sc ==3 ){ ucen <- 1.5647; cenp  <-50} #censoring pr=50% 
 
       #=====================================#  
       #   generate auxiliary information    #
@@ -301,6 +301,69 @@ getU.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K ma
       return(cbind(U1, U2, U3))
 }
 # getU.multi_asym(parm=c(alpha0[1:J],fit$coef), x=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
+
+
+
+# multiple survival endpoint, multiple subgroups, with allowing rho != 1
+getU.rho.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K matrix
+{
+      gdata <- x; N <- nrow(gdata)
+      J = length(T0)
+      if (J > 1) K = nrow(phi0)
+      else {
+            K = length(phi0)
+            phi0 = matrix(phi0, ncol=1)
+      }
+      # score function
+      J1 = J+1
+      rho = parm[1]
+      alpha = parm[2:J1]
+      beta = parm[-(1:J1)]
+
+      gx <- as.matrix( gdata[,-1*(1:2)] )
+      ebx <- exp( gx %*% beta )
+      S0 <- sapply( gdata$y, function(u, t=gdata$y, a=ebx){ sum(a*(t>=u)) }) # n*s^(0)( t=y_i, beta) for i=1,...,N
+      #baseline hazard
+      dLam <- gdata$d/S0 #assume no ties; this needs to be taken care of later
+      ### dN(y_i)/nS^(0)(y_i)  ####### use dN(y_i)/n for E[dN(t)]|y_i !!!!!
+
+      findInt <- function(u, tt=gdata$y, dh ){ sum(dh[tt<=u]) } ## \int_{t <= u}^ dh(t)
+
+      S1 <- matrix(NA, ncol=ncol(gx), nrow=N)
+      U1 = matrix(NA, ncol=ncol(gx), nrow=N)
+      for(kk in 1: ncol(gx)){
+            S1[,kk] <- sapply( gdata$y, function(u, t=gdata$y, a=gx[,kk]*ebx){ sum(a*(t>=u)) }) ## the kk-th element of n*S^(1)( Y_i, beta) for i=1,...,N
+            tmp <- gdata$d *(gx[,kk] - S1[,kk]/S0 )   ## \int_{t} [Z_i(t=y_i) - s^(1)/s^(0)]dN_i(t)
+            U1[, kk] <- tmp - (gx[,kk] * ebx * sapply(gdata$y, findInt, dh=dLam) - 
+                  ebx* sapply(gdata$y, findInt, dh=dLam * S1[,kk]/S0) ) 
+      } 
+
+      # accumulative hazard # check the correctness ########################
+      tmp <- NULL
+      U2 = matrix(NA, ncol=J, nrow=N)
+      for(j in 1:J){
+            tmp = sapply(gdata$y, min, T0[j])
+            U2[,j] = N*dLam * (gdata$y<=T0[j]) - N*ebx * sapply(tmp, findInt, dh=dLam/S0 ) + sapply(rep(T0[j], N), findInt, dh=dLam) - alpha[j]
+      }
+      
+      # auxiliary info
+      tmp <- NULL
+      grpval = sort(unique(grpID))[-1] # grpID == 0 means it does not fit in any subgroup
+      U3 = matrix(NA, ncol = J*K, nrow=N)
+      c = 1
+      for (j in 1:J){
+            for (k in 1:K){
+                  tmp =  (grpID == grpval[k])*(exp(-rho*alpha[j]*ebx) - phi0[k,j])
+                  U3[, c] = tmp
+                  c = c + 1
+            }
+      }
+
+      return(cbind(U1, U2, U3))
+}
+# getU.multi_asym(parm=c(alpha0[1:J],fit$coef), x=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
+
+
 
 
 
