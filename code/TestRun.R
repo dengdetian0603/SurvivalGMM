@@ -111,6 +111,7 @@ save(model_fits, bx0, T0, phi0, J, file=paste("o20160525-n",n,"-J",J,".Rdata", s
 
 
 # ------------------------------------ Bayesian GMM ------------------------------------- #
+<<<<<<< HEAD
 # tmp = Sim.data(n=n, aux=FALSE) 
 # wdata = tmp$data
 # grpID = tmp$grpID
@@ -121,7 +122,23 @@ save(model_fits, bx0, T0, phi0, J, file=paste("o20160525-n",n,"-J",J,".Rdata", s
 # mcmc.result = Bayesian.GMM(DataList=data.list, theta.init=c(alpha0[1:J],fit$coef), J=J, 
 #                         nburn=1, npost=501, jump.pars=jump.parameter, 
 #                         alpha.scale=5, beta.sd=10, shrinkage=TRUE)
+=======
+set.seed(21205+10*k)
+tmp = Sim.data(n=n, aux=FALSE) 
+wdata = tmp$data
+grpID = tmp$grpID
 
+data.list = list(X=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
+jump.parameter = data.frame(jump.scale=1, jump.sd1=0.02, jump.sd2=0.03)
+
+#source("InfoCombine_03042016.R")
+mcmc.result = Bayesian.GMM(DataList=data.list, theta.init=c(alpha0[1:J],fit$coef), J=J, 
+                        nburn=1, npost=5001, jump.pars=jump.parameter, 
+                        alpha.scale=5, beta.sd=10, shrinkage=TRUE)
+>>>>>>> 95786029e368a526b57c8e114a0554e8388b3e28
+
+save(mcmc.result, jump.parameter, bx0, T0, phi0, J, data.list, fit, fit1, 
+      file=paste("o20160408mcmc-n",n,"-J",J,".Rdata", sep="" ) )
 
 
 
