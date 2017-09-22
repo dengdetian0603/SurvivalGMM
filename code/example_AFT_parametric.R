@@ -1,4 +1,4 @@
-source("./AFT_GMM.R")
+source("./AFT_GMM_parametric.R")
 
 beta = c(0.2, 0.5, -0.5)
 sigma = 0.5
