@@ -1,0 +1,14 @@
+Loading required package: sandwich
+Loading required package: iterators
+Loading required package: parallel
+matrixStats v0.50.2 (2016-04-24) successfully loaded. See ?matrixStats for help.
+error inverting covariance matrix.
+error inverting covariance matrix.
+error inverting covariance matrix.
+error inverting covariance matrix.
+error inverting covariance matrix.
+error inverting covariance matrix.
+error inverting covariance matrix.
+error inverting covariance matrix.
+Error: unexpected input in "<<"
+Execution halted

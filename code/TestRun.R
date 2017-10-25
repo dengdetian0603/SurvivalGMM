@@ -26,10 +26,13 @@ if (length(args) > 1){
 alpha0 = seq(0.4,0.7,0.1)
 bx0 = c(-0.5, 0.5)
 
-T0 = c(0.5,0.75,1,1.25)
+
 #auxdata = Sim.data(n=1, tcut0=T0, rho0=1.5) 
 load("Population_data.Rdata")
-phi0 = auxdata$phi0
+#load("Population_data_rho1.5.Rdata")
+T0 = c(0.5,0.75,1,1.25)
+T0 = T0[c(1,3,4)]
+phi0 = auxdata$phi0[,c(1,3,4)]
 
 
 # true model 
@@ -39,7 +42,7 @@ formula0 <- as.formula("Surv(y, d) ~ z1 + z2")
 # J = 2 # number of time points used
 par0 = c(alpha0[1:J], bx0)
 
-nrep <- 64*10
+#nrep <- 64*10
 cenp <- rep(NA, nrep) # censored percentage
 fit.cox <- V.est <- matrix(NA, ncol= length(bx0), nrow=nrep) # true cox model coefficient
 fit1.gmm <- fit2.gmm <-matrix(NA, ncol= length(par0), nrow=nrep)
@@ -66,7 +69,8 @@ model_fits = foreach(k = 1:nrep, .combine=rbind) %dopar% {
             G = function(theta, x) getU.multi_asym(parm=theta, x=x, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
             G.grad = function(theta, x) getGrad(parm=theta, x=x, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID) 
             #fit1 <- summary( gmm(g=G, x=wdata, t0 = c(alpha0[1:J],fit$coef)  ) ) # GMM estimate based on asymptotic estimating equations with cox solution as starting value.
-            fit1 = tryCatch( summary( gmm(g=G, x=wdata, t0 = c(alpha0[1:J],fit$coef), gradv = G.grad, method="BFGS" ) ), 
+            #fit1 = tryCatch( summary( gmm(g=G, x=wdata, t0 = c(alpha0[1:J],fit$coef), gradv = G.grad, method="BFGS" ) ), 
+            fit1 = tryCatch( summary( gmm(g=G, x=wdata, t0 = c(alpha0[1:J],fit$coef) ) ),
                   error = function(c) "error solving GMM." )
 
             if (is.character(fit1)) {
@@ -102,43 +106,44 @@ var0  <- round(apply(fit.cox, 2, var ) , 4)
 bias1 <- round(apply(fit1.gmm, 2, mean, na.rm=TRUE) - bx0 , 4)
 var1  <- round(apply(fit1.gmm, 2, var, na.rm=TRUE) , 4) 
 
+print(paste0("n=",n, ", J=",J, ", rho=1, rho_hat=FALSE" ))
 print(paste("Cox: bias =",bias0[1], bias0[2], ", var = ", var0[1], var0[2], sep=" "))
 print(paste("GMM: bias =",bias1[1], bias1[2], ", var = ", var1[1], var1[2], sep=" "))
 
 
-save(model_fits, bx0, T0, phi0, J, file=paste("o20160525-n",n,"-J",J,".Rdata", sep="" ) )
+save(model_fits, bx0, T0, phi0, J, file=paste("Rho1-no_Rhohat-n",n,"-J",J,".Rdata", sep="" ) )
 
 
 
 # ------------------------------------ Bayesian GMM ------------------------------------- #
-<<<<<<< HEAD
+# <<<<<<< HEAD
+# # tmp = Sim.data(n=n, aux=FALSE) 
+# # wdata = tmp$data
+# # grpID = tmp$grpID
+# # data.list = list(X=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
+# # jump.parameter = data.frame(jump.scale=1, jump.sd1=0.02, jump.sd2=0.05)
+
+# # source("InfoCombine_03042016.R")
+# # mcmc.result = Bayesian.GMM(DataList=data.list, theta.init=c(alpha0[1:J],fit$coef), J=J, 
+# #                         nburn=1, npost=501, jump.pars=jump.parameter, 
+# #                         alpha.scale=5, beta.sd=10, shrinkage=TRUE)
+# =======
+# set.seed(21205+10*k)
 # tmp = Sim.data(n=n, aux=FALSE) 
 # wdata = tmp$data
 # grpID = tmp$grpID
+
 # data.list = list(X=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
-# jump.parameter = data.frame(jump.scale=1, jump.sd1=0.02, jump.sd2=0.05)
+# jump.parameter = data.frame(jump.scale=1, jump.sd1=0.02, jump.sd2=0.03)
 
-# source("InfoCombine_03042016.R")
+# #source("InfoCombine_03042016.R")
 # mcmc.result = Bayesian.GMM(DataList=data.list, theta.init=c(alpha0[1:J],fit$coef), J=J, 
-#                         nburn=1, npost=501, jump.pars=jump.parameter, 
+#                         nburn=1, npost=5001, jump.pars=jump.parameter, 
 #                         alpha.scale=5, beta.sd=10, shrinkage=TRUE)
-=======
-set.seed(21205+10*k)
-tmp = Sim.data(n=n, aux=FALSE) 
-wdata = tmp$data
-grpID = tmp$grpID
+# >>>>>>> 95786029e368a526b57c8e114a0554e8388b3e28
 
-data.list = list(X=wdata, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
-jump.parameter = data.frame(jump.scale=1, jump.sd1=0.02, jump.sd2=0.03)
-
-#source("InfoCombine_03042016.R")
-mcmc.result = Bayesian.GMM(DataList=data.list, theta.init=c(alpha0[1:J],fit$coef), J=J, 
-                        nburn=1, npost=5001, jump.pars=jump.parameter, 
-                        alpha.scale=5, beta.sd=10, shrinkage=TRUE)
->>>>>>> 95786029e368a526b57c8e114a0554e8388b3e28
-
-save(mcmc.result, jump.parameter, bx0, T0, phi0, J, data.list, fit, fit1, 
-      file=paste("o20160408mcmc-n",n,"-J",J,".Rdata", sep="" ) )
+# save(mcmc.result, jump.parameter, bx0, T0, phi0, J, data.list, fit, fit1, 
+#       file=paste("o20160408mcmc-n",n,"-J",J,".Rdata", sep="" ) )
 
 
 

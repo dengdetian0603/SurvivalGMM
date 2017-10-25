@@ -27,10 +27,12 @@ J1 = J+1
 alpha0 = seq(0.4,0.7,0.1)
 bx0 = c(-0.5, 0.5)
 
-T0 = c(0.5,0.75,1,1.25)
 #auxdata = Sim.data(n=1, tcut0=T0, rho0=1.5) 
 load("Population_data_rho1.5.Rdata")
-phi0 = auxdata$phi0
+#load("Population_data.Rdata")
+T0 = c(0.5,0.75,1,1.25)
+T0 = T0[c(1,3,4)]
+phi0 = auxdata$phi0[,c(1,3,4)]
 
 
 # true model 
@@ -103,11 +105,12 @@ var0  <- round(apply(fit.cox, 2, var ) , 4)
 bias1 <- round(apply(fit1.gmm, 2, mean, na.rm=TRUE) - bx0 , 4)
 var1  <- round(apply(fit1.gmm, 2, var, na.rm=TRUE) , 4) 
 
+print(paste0("n=",n, ", J=",J, ", rho=1.5, rho_hat=TRUE" ))
 print(paste("Cox: bias =",bias0[1], bias0[2], ", var = ", var0[1], var0[2], sep=" "))
 print(paste("GMM: bias =",bias1[1], bias1[2], ", var = ", var1[1], var1[2], sep=" "))
 
 
-save(model_fits, bx0, T0, phi0, J, file=paste("o20160525-n",n,"-J",J,"_rho.Rdata", sep="" ) )
+save(model_fits, bx0, T0, phi0, J, file=paste("Rho1.5-Rhohat-n",n,"-J",J,".Rdata", sep="" ) )
 
 
 
