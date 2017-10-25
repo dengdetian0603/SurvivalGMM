@@ -1,8 +1,12 @@
 library(aftgee)
 library(dplyr)
 
-source('~/Documents/JHSPH/Research/CY.Huang/Code/SurvivalGMM/code/AFT_GMM_logrank.R')
-Rcpp::sourceCpp("~/Documents/JHSPH/Research/CY.Huang/Code/SurvivalGMM/code/AFT_GMM_logrank.cpp")
+if (system("whoami", intern = TRUE) == "dengdetian0603") {
+  source('~/Documents/JHSPH/Research/CY.Huang/Code/SurvivalGMM/code/AFT_GMM_logrank.R')
+} else {
+  source("/users/ddeng/ThesisTopic/SurvivalGMM/code/AFT_GMM_logrank.R")
+}
+# Rcpp::sourceCpp("~/Documents/JHSPH/Research/CY.Huang/Code/SurvivalGMM/code/AFT_GMM_logrank.cpp")
 
 t.star = c(0.5, 1, 1.2)
 dat.obj0 = SimDataAFT(150, t.star, TRUE, 1, pr.cens = 0.45)

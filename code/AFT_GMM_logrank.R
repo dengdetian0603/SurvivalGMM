@@ -5,8 +5,11 @@ library(foreach)
 library(ggplot2)
 library(gmm)
 library(survival)
-Rcpp::sourceCpp("~/Documents/JHSPH/Research/CY.Huang/Code/SurvivalGMM/code/AFT_GMM_logrank.cpp")
-
+if (system("whoami", intern = TRUE) == "dengdetian0603") {
+  Rcpp::sourceCpp("~/Documents/JHSPH/Research/CY.Huang/Code/SurvivalGMM/code/AFT_GMM_logrank.cpp")
+} else {
+  Rcpp::sourceCpp("/users/ddeng/ThesisTopic/SurvivalGMM/code/AFT_GMM_logrank.cpp")
+}
 
 GehanMoments <- function(beta.vec, dat.mat) {
 # gval = GehanMoments(c(0.5, -0.5), as.matrix(dat.obj$data))
