@@ -63,7 +63,7 @@ model_fits = foreach(k = 1:nrep, .combine=rbind) %dopar% {
             
             # fit the true model
             fit <- coxph( formula0, data=wdata )
-
+            # survreg(formula0, wdata, dist = "weibull")
             ## combine from population survival probability
             #G = function(theta, x) getU.asym(parm=theta, x=x, T0=T0[1], phi0=phi0[,1], grpID=grpID)
             G = function(theta, x) getU.multi_asym(parm=theta, x=x, T0=T0[1:J], phi0=phi0[,1:J], grpID=grpID)
