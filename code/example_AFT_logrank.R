@@ -9,26 +9,28 @@ if (system("whoami", intern = TRUE) == "dengdetian0603") {
 # Rcpp::sourceCpp("~/Documents/JHSPH/Research/CY.Huang/Code/SurvivalGMM/code/AFT_GMM_logrank.cpp")
 
 t.star = c(0.5, 1, 1.2)
-dat.obj0 = SimDataAFT(150, t.star, TRUE, 1, pr.cens = 0.45)
+SimDataAFT <- SimSurvival2
+dat.obj0 = SimDataAFT(150, t.star, TRUE, 1, pr.cens = 0.3)
+
 surv.prob = dat.obj0$phi0
 
+# -----------------------------------------------------------------------------
+dat.obj = SimDataAFT(150, t.star, FALSE, 1, pr.cens = 0.3)  
 
-dat.obj = SimDataAFT(800, t.star, FALSE, 1, pr.cens = 0.45)  
-
-# beta.vec = c(0.5, -0.5)
-dat.mat = as.matrix(dat.obj$data)
+# beta.vec = c(0.5, -0.5, 0.5)
+dat.mat = as.matrix(cbind(dat.obj$data, dat.obj$data$z1 * dat.obj$data$z2))
 grp.id = dat.obj$grpID[, 1]
 grp.id0 = grp.id
 # ------------------------------------------------------------------------------
-surv.moments = survMoments4(dat.mat, grp.id0, surv.prob, t.star)
-colMeans(surv.moments)
+# surv.moments = survMoments4(dat.mat, grp.id0, surv.prob, t.star)
+# colMeans(surv.moments)
 
 Moments = FullMoments(beta.vec, dat.mat, grp.id0, surv.prob, t.star)
 # Moments = FullMoments2(beta.vec, dat.mat, grp.id, surv.prob, t.star)
 # cor(Moments)
 colMeans(Moments)
 
-round(cor(Moments, surv.moments), 4)
+# round(cor(Moments, surv.moments), 4)
 
 plot(Moments[, 3], Moments[, 7], col = dat.obj$grpID + 1)
 
@@ -66,17 +68,17 @@ gmmEq2 <- function(theta, x) {
 
 
 
-fit0 = aftsrr(Surv(y, d) ~ z1 + z2, data = dat.obj$data,
+fit0 = aftsrr(Surv(y, d) ~ z1 + z2 + z1 * z2, data = dat.obj$data,
               rankWeights = "gehan", method = "sm",
               B = 50, variance = c("ISMB", "ZLMB"))
 summary(fit0)
 
-gfit1 = suppressWarnings(gmm(g = GehanMoments, x = as.matrix(dat.obj$data),
+gfit1 = suppressWarnings(gmm(g = GehanMoments, x = dat.mat,
                              t0 = coef(fit0), method = "BFGS", type = "two"))
 gfit1
 
 t0 = proc.time()
-gfit2 = suppressWarnings(gmm(g = gmmEq2, x = as.matrix(dat.obj$data),
+gfit2 = suppressWarnings(gmm(g = gmmEq, x = dat.mat,
                              t0 = coef(fit0), method = "BFGS", type = "two"))
 proc.time() - t0
 gfit2
