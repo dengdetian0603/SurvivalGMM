@@ -44,6 +44,45 @@ GehanMoments <- function(beta.vec, dat.mat) {
   G.mat[order0, ]
 }
 
+
+survMoments0 <- function(rho = NULL, beta.vec, dat.mat,
+                         grp.id, surv.prob, t.star) {
+  # survival info condition through breslow estimator
+  # allowing flexible baseline hazard 
+  X.mat = cbind(dat.mat[, -(1:2)])
+  N = nrow(dat.mat)
+  Xbeta = X.mat %*% cbind(beta.vec)
+  
+  e.vec = log(dat.mat[, 1]) - Xbeta
+  e.order = order(e.vec)
+  order0 = (1:N)[e.order]
+  e.vec = e.vec[e.order]
+  X.mat = X.mat[e.order, ]
+  d.vec = dat.mat[e.order, 2]
+  
+  # Sub-group survivial probabilities
+  # ----------------------------------------------------------------------------
+  surv.prob = cbind(surv.prob)
+  num.grp = max(grp.id)
+  num.time = length(t.star)
+  grp.id = as.vector(grp.id)[e.order]
+  
+  epsilon.mat = sapply(log(t.star),  function(x) x - Xbeta[e.order, ])
+  dR.vec = d.vec / (N:1)
+  alpha.mat = hazardMat(cumsum(dR.vec), e.vec, epsilon.mat)
+  ndR2.vec = N * d.vec / ((N:1)^2)
+  
+  if (length(rho) < 1) {
+    Psi.mat = psiMat(cumsum(ndR2.vec), e.vec, d.vec,
+                     epsilon.mat, alpha.mat, grp.id, surv.prob)    
+  } else {
+    Psi.mat = psiMatFlex(rho, cumsum(ndR2.vec), e.vec, d.vec,
+                         epsilon.mat, alpha.mat, grp.id, surv.prob)
+  }
+  Psi.mat[order0, ]
+}
+
+
 survMoments2 <- function(dat.mat, grp.id0, surv.prob, t.star) {
   N = nrow(dat.mat)
   y.vec0 = dat.mat[, 1]
@@ -241,6 +280,49 @@ FullMoments <- function(beta.vec, dat.mat, grp.id, surv.prob, t.star) {
   Psi.mat = psiMat(cumsum(ndR2.vec), e.vec, d.vec, epsilon.mat, alpha.mat, 
                    grp.id, surv.prob)
 
+  cbind(G.mat, Psi.mat)[order0, ]
+}
+
+FullMomentsFlex <- function(rho, beta.vec, dat.mat, grp.id, surv.prob, t.star) {
+  # allowing flexible baseline hazard 
+  X.mat = cbind(dat.mat[, -(1:2)])
+  N = nrow(dat.mat)
+  Xbeta = X.mat %*% cbind(beta.vec)
+  
+  e.vec = log(dat.mat[, 1]) - Xbeta
+  e.order = order(e.vec)
+  order0 = (1:N)[e.order]
+  e.vec = e.vec[e.order]
+  X.mat = X.mat[e.order, ]
+  d.vec = dat.mat[e.order, 2]
+  
+  Xd.mat = X.mat * d.vec
+  XdR.mat = Xd.mat * (N:1)
+  # Gehan Moments
+  # ----------------------------------------------------------------------------
+  G1.mat = t(apply(Xd.mat, 2, cumsum)/N)
+  G2.vec = colSums(XdR.mat)/(N^2)
+  G3.mat = t(XdR.mat/N)
+  G4.mat = t(d.vec/N * apply(X.mat[N:1, ], 2, cumsum)[N:1, ])
+  G5.mat = t(cumsum(d.vec)/N * X.mat)
+  G6.vec = rowMeans(G4.mat)
+  
+  G.mat = t(G1.mat - G2.vec + G3.mat - G4.mat - G5.mat + G6.vec)
+  # Sub-group survivial probabilities
+  # ----------------------------------------------------------------------------
+  surv.prob = cbind(surv.prob)
+  num.grp = max(grp.id)
+  num.time = length(t.star)
+  grp.id = as.vector(grp.id)[e.order]
+  
+  epsilon.mat = sapply(log(t.star),  function(x) x - Xbeta[e.order, ])
+  dR.vec = d.vec / (N:1)
+  alpha.mat = hazardMat(cumsum(dR.vec), e.vec, epsilon.mat)
+  ndR2.vec = N * d.vec / ((N:1)^2)
+  
+  Psi.mat = psiMatFlex(rho, cumsum(ndR2.vec), e.vec, d.vec,
+                       epsilon.mat, alpha.mat, grp.id, surv.prob)
+  
   cbind(G.mat, Psi.mat)[order0, ]
 }
 

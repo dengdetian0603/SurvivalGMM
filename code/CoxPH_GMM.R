@@ -206,7 +206,8 @@ getU.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by K ma
       
       # auxiliary info
       tmp <- NULL
-      grpval = sort(unique(grpID))[-1] # grpID == 0 means it does not fit in any subgroup
+      # grpval = sort(unique(grpID))[-1] # grpID == 0 means it does not fit in any subgroup
+      grpval = 1:K
       U3 = matrix(NA, ncol = J*K, nrow=N)
       c = 1
       for (j in 1:J){
@@ -267,7 +268,8 @@ getU.rho.multi_asym <- function(parm, x=wdata, T0, phi0, grpID) # phi be a J by 
       
       # auxiliary info
       tmp <- NULL
-      grpval = sort(unique(grpID))[-1] # grpID == 0 means it does not fit in any subgroup
+      # grpval = sort(unique(grpID))[-1] # grpID == 0 means it does not fit in any subgroup
+      grpval = 1:K
       U3 = matrix(NA, ncol = J*K, nrow=N)
       c = 1
       for (j in 1:J){

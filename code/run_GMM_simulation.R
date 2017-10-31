@@ -61,8 +61,8 @@ for (i in 1:nrow(grid)) {
   }
 
   fit0 = aftsrr(formula0, data = dat.obj$data,
-              rankWeights = "gehan", method = "sm",
-              B = 50, variance = c("ZLMB"))
+                rankWeights = "gehan", method = "sm",
+                B = 50, variance = c("ZLMB"), subset = NULL)
 
   gfit2 = suppressWarnings(gmm(g = gmmEq, x = dat.mat,
                                t0 = coef(fit0), method = "BFGS", type = "two"))
