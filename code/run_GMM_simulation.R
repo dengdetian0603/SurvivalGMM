@@ -27,9 +27,9 @@ setwd(dir)
 if (file.exists('./code/population_data.Rdata')) {
   load('./code/population_data.Rdata')
 } else {
-  t.star = c(0.5, 1, 1.2)
+  t.star = c(0.4, 0.8, 1.2, 1.6)
   dat.obj0.a = SimSurvival1(150, t.star, TRUE, 1, pr.cens = 0.3)
-  dat.obj0.b = SimSurvival2(150, t.star, TRUE, 1, pr.cens = 0.3)
+  dat.obj0.b = SimSurvival2(150, t.star, TRUE, 1, pr.cens = 0.3, aux.rho = 0.8)
   save(t.star, dat.obj0.a, dat.obj0.b, file = './code/population_data.Rdata')
 }
 
@@ -37,11 +37,11 @@ tid = as.numeric(Sys.getenv("SGE_TASK_ID"))
 if (is.na(tid)) tid = 0
 
 # =============================================================================
-grid = expand.grid(num.T = 1:3, pr.cens = c(0.3, 0.5, 0.75))
+grid = expand.grid(num.T = 1:4, pr.cens = c(0.0, 0.3, 0.5, 0.75))
 
-## no interaction
-surv.prob = dat.obj0.a$phi0
-formula0 = as.formula("Surv(y, d) ~ z1 + z2")
+## has interaction
+surv.prob = dat.obj0.b$phi0
+formula0 = as.formula("Surv(y, d) ~ z1 + z2 + z1 * z2")
 
 out = c()
 for (i in 1:nrow(grid)) {
@@ -49,15 +49,20 @@ for (i in 1:nrow(grid)) {
   t.star.i = t.star[1:num.T]
   surv.prob.i = cbind(surv.prob[, 1:num.T])
 
-  dat.obj = SimSurvival1(150, t.star.i, FALSE, 1,
+  dat.obj = SimSurvival2(150, t.star.i, FALSE, 1,
                          pr.cens = grid$pr.cens[i])
-  dat.mat = as.matrix(dat.obj$data)
+  dat.mat = as.matrix(cbind(dat.obj$data, dat.obj$data$z1 * dat.obj$data$z2))
   grp.id = dat.obj$grpID[, 1]
   grp.id0 = grp.id    
   
   # AFT Gehan ~~~~~~~~~~~~~~~~~~~~~~~~~~
+  # gmmEq <- function(theta, x) {
+  #   FullMoments(beta.vec = theta, dat.mat = x, grp.id, surv.prob.i, t.star.i)
+  # }
+  
   gmmEq <- function(theta, x) {
-    FullMoments(beta.vec = theta, dat.mat = x, grp.id, surv.prob.i, t.star.i)
+    FullMomentsFlex(rho = theta[1], beta.vec = theta[-1], dat.mat = x,
+                    grp.id, surv.prob.i, t.star.i)
   }
 
   fit0 = aftsrr(formula0, data = dat.obj$data,
@@ -65,7 +70,8 @@ for (i in 1:nrow(grid)) {
                 B = 50, variance = c("ZLMB"), subset = NULL)
 
   gfit2 = suppressWarnings(gmm(g = gmmEq, x = dat.mat,
-                               t0 = coef(fit0), method = "BFGS", type = "two"))
+                               t0 = c(1, coef(fit0)),
+                               method = "BFGS", type = "two"))
 
   W = as.matrix(gfit2$w0)
   var.beta = VarBeta(beta.vec = coef(gfit2), dat.mat, grp.id,

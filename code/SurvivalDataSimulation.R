@@ -64,7 +64,7 @@ SimSurvival1 <- function(n.sample = 100, tcut0 = 0.5,
 
 
 SimSurvival2 <- function(n.sample = 100, tcut0 = 0.5,
-                         aux = FALSE, option = 1,
+                         aux = FALSE, option = 1, aux.rho = 1,
                          pr.cens = c(0, 0.3, 0.5, 0.75)) {
   # Simulate survival time from weibull distribution, satisfy both Cox and AFT
   # with interaction term 
@@ -87,7 +87,7 @@ SimSurvival2 <- function(n.sample = 100, tcut0 = 0.5,
     ZB = beta[1] + z1 * beta[2] + z2 * beta[3] + z1 * z2 * beta[4]
     Acut0 <- Xcut(z1, z2 )
     phi0 = matrix(NA, ncol = length(tcut0), nrow = ncol(Acut0))
-    t0 = sapply(exp(ZB), rweibull, n = 1, shape = 1/sigma)
+    t0 = sapply(exp(ZB)/sqrt(aux.rho), rweibull, n = 1, shape = 1/sigma)
     for (k in 1:ncol(Acut0)) {
       for (j in 1:length(tcut0)) {
         phi0[k, j] = sapply(tcut0[j], function(u, t = t0[Acut0[, k]]) {
