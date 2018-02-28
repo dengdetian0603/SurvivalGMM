@@ -466,6 +466,43 @@ VarBeta <- function(beta.vec, dat.mat, grp.id, surv.prob,
 }
 
 
+GradMomentsRho <- function(theta, dat.mat,
+                           grp.id, surv.prob, t.star, B = 20) {
+  N = nrow(dat.mat)
+  p = length(theta)
+  DZsum = 0
+  gVal = colSums(FullMomentsFlex(theta[1], theta[-1], dat.mat,
+                                 grp.id, surv.prob, t.star))/sqrt(N)
+  for (i in 1:B) {
+    Z = rnorm(p, 0, 1)
+    theta.per = theta + Z/sqrt(N)
+    gPerturb = colSums(FullMomentsFlex(theta.per[1], theta.per[-1], dat.mat,
+                                       grp.id, surv.prob, t.star))/sqrt(N)
+    DZ = cbind(gPerturb - gVal) %*% rbind(Z)
+    DZsum = DZsum + DZ
+  }
+  DZsum/B
+}
+
+
+VarBetaRho <- function(theta, dat.mat, grp.id, surv.prob,
+                       t.star, B = 20, W = NULL) {
+  # sieveGMM with non-smooth moments.
+  g = FullMomentsFlex(theta[1], theta[-1], dat.mat,
+                      grp.id, surv.prob, t.star)
+  V = kernHAC(lm(g ~ 1), sandwich = FALSE)
+  dG = GradMomentsRho(theta, dat.mat,
+                      grp.id, surv.prob, t.star, B)
+  if (length(W) < 1) {
+    varBeta = solve(t(dG) %*% V %*% dG)/nrow(dat.mat)
+  } else {
+    invGWG = solve(t(dG) %*% W %*% dG)
+    GWVWG = t(dG) %*% W %*% V %*% W %*% dG
+    varBeta = invGWG %*% GWVWG %*% invGWG/nrow(dat.mat)
+  }
+  varBeta
+}
+
 
 
 
